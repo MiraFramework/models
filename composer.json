@@ -1,0 +1,14 @@
+{
+    "name": "miraframework/models",
+    "description": "A Service Provider to add Model ORM support to Mira Framework",
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Joseph Mancuso",
+            "email": "jmancuso.mil@gmail.com"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {}
+}
