@@ -533,6 +533,7 @@ class Model
     public function delete($where_clause = 1)
     {
         global $config;
+        $this->delete_clause = $where_clause;
 
         $table_name = static::class;
         
@@ -552,6 +553,7 @@ class Model
     public function deleteAll($where_clause = 1)
     {
         global $config;
+        $this->delete_clause = $where_clause;
 
         $table_name = static::class;
 
@@ -571,7 +573,7 @@ class Model
     public function confirm()
     {
         try {
-            $this->delete()->execute();
+            $this->delete($this->delete_clause)->execute();
             return true;
         } catch (Exception $e) {
             return false;
@@ -581,7 +583,7 @@ class Model
     public function confirmAll()
     {
         try {
-            $this->deleteAll()->execute();
+            $this->deleteAll($this->delete_clause)->execute();
             return true;
         } catch (Exception $e) {
             return false;
