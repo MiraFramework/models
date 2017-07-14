@@ -388,7 +388,7 @@ class Model
 
         $this->last_call = $query->fetchAll();
 
-        return $this->call();
+        return $this->getCall();
         //return $query->fetchAll();
     }
     
