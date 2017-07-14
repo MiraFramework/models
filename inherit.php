@@ -373,6 +373,7 @@ class Model
     public function getCall()
     {
         if ($this->json == true) {
+            $this->json = false;
             return json_encode($this->last_call);
         } else {
             return $this->last_call;
