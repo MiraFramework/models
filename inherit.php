@@ -289,12 +289,9 @@ class Model
         }
         return $columns;
     }
-    
-    #### CREATE
-    
-    public function insert()
+
+    public function createInsertQuery()
     {
-        
         foreach (array_keys($this->arr) as $key) {
             $newkey .= " ".$key;
         }
@@ -303,29 +300,28 @@ class Model
         $cols = str_replace(" ", ",", $cols);
         
         $newkey = str_replace(" ", ",", trim($newkey));
-        
-        global $config; 
 
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
 
-        $view_query = "INSERT INTO `$table` ($cols) VALUES($newkey)";
-        return $query = $this->db_engine->prepare("INSERT INTO `$table` ($cols) VALUES($newkey)");
+        return $view_query = "INSERT INTO `$table` ($cols) VALUES($newkey)";
     }
 
-    public function insertFromPost($post)
+    public function createUpdateQuery($where_clause)
     {
-        print_r($post);
+        foreach ($this->update as $key => $value) {
+            $values .= "`".$key."` = '".$value."',";
+        }
         
+        $val = str_replace(":", "", $values);
+        $val = rtrim($val, ",");
+
+        $table = $this->getTableName();
+
+        return $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
+    }
+
+    public function createInsertQueryFromPost($post)
+    {
         foreach ($post as $key => $value) {
             $cols .= "--".$key;
             $values .= "--'".$value."'";
@@ -336,169 +332,125 @@ class Model
         $values = str_replace("--", ",", trim($values));
         $values = ltrim($values, ",");
 
-        global $config;
+        $table_name = $this->getTableName();
 
-        $table_name = static::class;
-
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
-
-        echo $view_query = "INSERT INTO `$table` ($cols) VALUES ($values)";
-        return $query = $this->db_engine->query("INSERT INTO `$table` ($cols) VALUES ($values)");
+        return $view_query = "INSERT INTO `$table` ($cols) VALUES ($values)";
     }
 
+    public function getTableName()
+    {
+        if (strpos(static::class, "_") !== false) {
+            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
+                return $table = str_replace("_", "-", static::class);
+            } else {
+               return $table = static::class;
+            }
+        } else {
+            return $table = static::class;
+        }
+    }
+    
+    #### CREATE
+    
+    public function insert()
+    {
+        $insert_query = $this->createInsertQuery();
+        return $query = $this->db_engine->prepare($insert_query);
+    }
 
+    public function insertFromPost($post)
+    {
+        $insert_query = $this->createInsertQueryFromPost($post);
+        return $query = $this->db_engine->query($insert_query);
+    }
+
+    public function json()
+    {
+        $this->json = true;
+        return $this;
+    }
+
+    public function getCall()
+    {
+        if ($this->json == true) {
+            return json_encode($this->last_call);
+        } else {
+            return $this->last_call;
+        }
+    }
     
     #### READ
     public function all()
     {
-        global $config;
-        //$this->db_engine = $this->db_engine;
-
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
-
-        echo $table;
+        $table = $this->getTableName();
         
         $query = $this->db_engine->query("SELECT * FROM `$table` WHERE 1");
-        
-        return $query->fetchAll();
+
+        $this->last_call = $query->fetchAll();
+
+        return $this->call();
+        //return $query->fetchAll();
     }
     
     public function get($where_clause = 1)
     {
-        global $config;
-
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
         
         $query = $this->db_engine->query('SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1');
         
-        return $query->fetchAll();
+        $this->last_call = $query->fetchAll();
+
+        return $this->getCall();
     }
     
     public function filter($where_clause = null)
     {
-        global $config;
-
-        $this->db_engine->errorInfo();
-
-        $table_name = static::class;
-
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
-        
-        $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
+         /*
         $this->structure = array();
         //echo $query->columnCount();
 
         for ($i = 0; $i < $query->columnCount(); $i++) {
             array_push($this->structure, $query->getColumnMeta($i));
         }
+        */
+
+        $table = $this->getTableName();
         
-        return $query->fetchAll();
+        $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
+        
+        $this->last_call = $query->fetchAll();
+
+        return $this->getCall();
     }
 
     public function toJson($where_clause = 1)
     {
-        global $config;
+        $table = $this->getTableName();
 
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
-        
         $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
 
-        return json_encode($query->fetchAll());
+        $this->last_call = $query->fetchAll();
+        
+        return $this->getCall();
     }
 
     public function query($sql, $where = '')
     {
-        global $config;
-
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
 
         $query = $this->db_engine->query($sql." $where");
+
+        $this->last_call = $query->fetchAll();
         
-        return $query->fetchAll();
+        return $this->getCall();
     }
     
     #### UPDATE
     
     public function update($where_clause = 1)
     {
-        foreach ($this->update as $key => $value) {
-            $values .= "`".$key."` = '".$value."',";
-        }
+        $sql = $this->createUpdateQuery($where_clause);
         
-        $val = str_replace(":", "", $values);
-        $val = rtrim($val, ",");
-    
-        global $config;
-
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
-
-        $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
         return $query = $this->db_engine->query($sql);
     }
 
@@ -511,19 +463,7 @@ class Model
         $val = str_replace(":", "", $values);
         $val = rtrim($val, ",");
 
-        global $config;
-
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
         
         return $query = $this->db_engine->query("UPDATE `$table` SET $val WHERE $where_clause LIMIT 1");
     }
@@ -532,40 +472,18 @@ class Model
     
     public function delete($where_clause = 1)
     {
-        global $config;
         $this->delete_clause = $where_clause;
 
-        $table_name = static::class;
-        
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
         
         return $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause LIMIT 1");
     }
     
     public function deleteAll($where_clause = 1)
     {
-        global $config;
         $this->delete_clause = $where_clause;
 
-        $table_name = static::class;
-
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table = $this->getTableName();
 
         return $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause ");
     }
