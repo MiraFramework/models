@@ -379,27 +379,121 @@ class Model
             return $this->last_call;
         }
     }
+
+    public function cache($time)
+    {
+        $this->cache_time = $time;
+        return $this;
+    }
+
+    public function seconds()
+    {
+        $this->cache = true;
+        $this->cache_time = "+".$this->cache_time." seconds";
+        return $this;
+    }
+
+    public function minutes()
+    {
+        $this->cache = true;
+        $this->cache_time = "+".$this->cache_time." minutes";
+        return $this;
+    }
+
+    public function hours()
+    {
+        $this->cache = true;
+        $this->cache_time = "+".$this->cache_time." hours";
+        return $this;
+    }
+
+    public function days()
+    {
+        $this->cache = true;
+        $this->cache_time = "+".$this->cache_time." days";
+        return $this;
+    }
+
+    public function months()
+    {
+        $this->cache = true;
+        $this->cache_time = "+".$this->cache_time." months";
+        return $this;
+    }
+
+    public function fetchCache($queryString)
+    {
+        if (file_exists("../cache/".md5($queryString).".cache.php")) {
+            //print_r(filectime("../cache/".md5($queryString).".cache.php"));
+            $return = file_get_contents("../cache/".md5($queryString).".cache.php");
+            $stripTime = preg_match("/^@\d+/", $return, $matches);
+            $expire_time = str_replace("@", "", $matches[0]);
+            $return = preg_replace("/^@\d+/", "", $return);
+            $file_create_time = filectime("../cache/".md5($queryString).".cache.php");
+            if ($expire_time < time()) {
+                unlink("../cache/".md5($queryString).".cache.php");
+                return false;
+            } else {
+                $json_decode = json_decode($return, true);
+
+                if (!empty($json_decode)) {
+                    return $json_decode;
+                }
+                return unserialize($return);
+            }
+        }
+    }
+
+    public function storeCache()
+    {
+        if ($this->cache) {
+            $time = strtotime($this->cache_time);
+            if ($this->json) {
+                file_put_contents("../cache/".md5($this->last_query).
+                ".cache.php", "@".$time.json_encode($this->last_call));
+            } else {
+                file_put_contents("../cache/".md5($this->last_query).
+                ".cache.php", "@".$time.serialize($this->last_call));
+            }
+        }
+    }
     
     #### READ
     public function all()
     {
         $table = $this->getTableName();
-        
-        $query = $this->db_engine->query("SELECT * FROM `$table` WHERE 1");
 
-        $this->last_call = $query->fetchAll();
+        $queryString = "SELECT * FROM `$table` WHERE 1";
 
+        if ($this->fetchCache($queryString)) {
+            return $this->fetchCache($queryString);
+        }
+
+        $query = $this->db_engine->query($queryString);
+
+        $this->last_call = $query->fetchAll()[0];
+        $this->last_query = $queryString;
+
+        $this->storeCache();
         return $this->getCall();
-        //return $query->fetchAll();
     }
     
     public function get($where_clause = 1)
     {
         $table = $this->getTableName();
+
+        $queryString = 'SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1';
         
-        $query = $this->db_engine->query('SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1');
-        
-        $this->last_call = $query->fetchAll();
+        if ($this->fetchCache($queryString)) {
+            return $this->fetchCache($queryString);
+        }
+
+        $query = $this->db_engine->query($queryString);
+
+        $this->last_call = $query->fetchAll()[0];
+        $this->last_query = $queryString;
+
+        $this->storeCache();
 
         return $this->getCall();
     }
@@ -417,10 +511,19 @@ class Model
 
         $table = $this->getTableName();
         
-        $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
+        $queryString = 'SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1';
         
-        $this->last_call = $query->fetchAll();
+        if ($this->fetchCache($queryString)) {
+            return $this->fetchCache($queryString);
+        }
+        
+        $query = $this->db_engine->query($queryString);
 
+        $this->last_call = $query->fetchAll()[0];
+        $this->last_query = $queryString;
+
+        $this->storeCache();
+        
         return $this->getCall();
     }
 
