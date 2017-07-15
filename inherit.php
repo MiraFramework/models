@@ -458,8 +458,8 @@ class Model
                 file_put_contents("../cache/".md5($this->last_query).
                 ".cache.php", "@".$time.serialize($this->last_call));
             }
-            $this->cache = false;
         }
+        $this->cache = false;
     }
     
     #### READ
@@ -475,7 +475,7 @@ class Model
 
         $query = $this->db_engine->query($queryString);
 
-        $this->last_call = $query->fetchAll()[0];
+        $this->last_call = $query->fetchAll();
         $this->last_query = $queryString;
 
         $this->storeCache();
@@ -504,15 +504,6 @@ class Model
     
     public function filter($where_clause = null)
     {
-         /*
-        $this->structure = array();
-        //echo $query->columnCount();
-
-        for ($i = 0; $i < $query->columnCount(); $i++) {
-            array_push($this->structure, $query->getColumnMeta($i));
-        }
-        */
-
         $table = $this->getTableName();
         
         $queryString = 'SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1';
