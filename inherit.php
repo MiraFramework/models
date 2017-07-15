@@ -448,6 +448,9 @@ class Model
     {
         if ($this->cache) {
             $time = strtotime($this->cache_time);
+            if (!file_exists("../cache/")) {
+                mkdir("../cache/");
+            }
             if ($this->json) {
                 file_put_contents("../cache/".md5($this->last_query).
                 ".cache.php", "@".$time.json_encode($this->last_call));
@@ -455,6 +458,7 @@ class Model
                 file_put_contents("../cache/".md5($this->last_query).
                 ".cache.php", "@".$time.serialize($this->last_call));
             }
+            $this->cache = false;
         }
     }
     
@@ -523,7 +527,7 @@ class Model
         $this->last_query = $queryString;
 
         $this->storeCache();
-        
+
         return $this->getCall();
     }
 
