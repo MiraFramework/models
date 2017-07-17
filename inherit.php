@@ -175,16 +175,7 @@ class Model
             
             $this->arr[$method] = $value[0];
         } else {
-            // make this else here
 
-            // find the string contraint leagues_users_fk
-            // explode _
-            // $cl = new explode[1]();
-            // return $cl;
-
-            global $config;
-
-            //echo "<br>SELECT * FROM teams, info WHERE teams.pokemon = info.id<br>";
             $class_name = static::class;
             $query = $this->db_engine->query("
                 SELECT `REFERENCED_TABLE_NAME`, `REFERENCED_TABLE_SCHEMA`, `TABLE_SCHEMA` 
@@ -217,20 +208,19 @@ class Model
             // returns where teams equals 1
             
             if (!$value) {
-                $cl = new $reference_table();
+                $cl = new $reference_table($table_schema);
                 
                 //$cl->getColumnName();
                 $sql = "SELECT * FROM $table_schema.$class_name, $reference_schema.$reference_table WHERE $table_schema.$class_name.$method = $reference_schema.$reference_table.id";
 
-                return $cl->query($sql);
-            } elseif (is_integer($value)) {
+                return $cl;
+            } elseif (is_integer($value[0])) {
                 $fk = $this->filter("id = '$value[0]' ")[0][$method];
 
                 $cl = new $reference_table();
                 return $cl->filter("id = '$fk' ")[0];
             } else {
                 $cl = new $reference_table();
-                //$cl->getColumnName();
                 $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
 
                 //echo "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
