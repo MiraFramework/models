@@ -514,7 +514,7 @@ class Model
         
         $query = $this->db_engine->query($queryString);
 
-        $this->last_call = $query->fetchAll()[0];
+        $this->last_call = $query->fetchAll();
         $this->last_query = $queryString;
 
         $this->storeCache();
