@@ -506,7 +506,7 @@ class Model
     {
         $table = $this->getTableName();
         
-        $queryString = 'SELECT * FROM `'.$table.'` WHERE '.$where_clause.' LIMIT 1';
+        $queryString = 'SELECT * FROM `'.$table.'` WHERE '.$where_clause;
         
         if ($this->fetchCache($queryString)) {
             return $this->fetchCache($queryString);
