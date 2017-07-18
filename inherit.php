@@ -24,13 +24,14 @@ class Model
 
         // check if database exists
         global $config;
-        $connection = 'mysql:host=localhost;';
-        $this->db_engine = new \PDO(
-            $connection,
-            $config['database']['username'],
-            $config['database']['password']
-        );
         if ($this->create == true) {
+            $connection = 'mysql:host=localhost;';
+            $this->db_engine = new \PDO(
+                $connection,
+                $config['database']['username'],
+                $config['database']['password']
+            );
+        
             $this->db_engine->query("CREATE DATABASE IF NOT EXISTS ".$this->database);
         }
 
@@ -40,51 +41,32 @@ class Model
             $config['database']['username'],
             $config['database']['password']
         );
-
-        $table = static::class;
-        $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
         
-        // query the database
-        // get the columns and echo them
-        
-        if ($this->create == true && $query->rowCount()) {
-            // the table exists and create is true. try and add the columns
-            $query = $this->db_engine->query("SELECT * FROM $table WHERE 1");
-            $get_column = $query->GetColumnMeta(1);
-            
-            // match the get column ['name'] to each element in the array.
-            $variables = get_class_vars(static::class);
-            
-            
-            foreach ($variables as $variable) {
-                $get_column = $query->GetColumnMeta($i);
+        if ($this->create == true) {
+            $table = static::class;
+            $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
+            if ($query->rowCount()) {
+                // the table exists and create is true. try and add the columns
+                $query = $this->db_engine->query("SELECT * FROM $table WHERE 1");
+                $get_column = $query->GetColumnMeta(1);
                 
-                if ($variable) {
-                    //if ($get_column['name'] == array_keys($variables)[$i+1] ){
-                    if (in_array($get_column['name'], array_keys($variables), true)) {
-                        //
-                    } else {
-                        // add the columns to the table
-                        $column_name = array_keys($variables)[$i+1];
-                        $data_type = array_values($variables)[$i+1];
-                        $old_column = $get_column['name'];
-                        
-                        if ($data_type === "varchar") {
-                            $data_type = "VARCHAR (255)";
-                        } elseif ($data_type === "int") {
-                            $data_type = "INT (11)";
-                        } elseif ($data_type === "datetime") {
-                            $data_type = "DATETIME";
-                        } elseif ($data_type === "date") {
-                            $data_type = "DATE";
-                        } elseif ($data_type === "text") {
-                            $data_type = "TEXT(1500)";
-                        }
-                        
-                        // modify table
-                        if ($this->db_engine->query("ALTER TABLE $table CHANGE $old_column $column_name $data_type")) {
-                                //
+                // match the get column ['name'] to each element in the array.
+                $variables = get_class_vars(static::class);
+                
+                
+                foreach ($variables as $variable) {
+                    $get_column = $query->GetColumnMeta($i);
+                    
+                    if ($variable) {
+                        //if ($get_column['name'] == array_keys($variables)[$i+1] ){
+                        if (in_array($get_column['name'], array_keys($variables), true)) {
+                            //
                         } else {
+                            // add the columns to the table
+                            $column_name = array_keys($variables)[$i+1];
+                            $data_type = array_values($variables)[$i+1];
+                            $old_column = $get_column['name'];
+                            
                             if ($data_type === "varchar") {
                                 $data_type = "VARCHAR (255)";
                             } elseif ($data_type === "int") {
@@ -97,44 +79,57 @@ class Model
                                 $data_type = "TEXT(1500)";
                             }
                             
-                            
-                            $this->db_engine->query("ALTER TABLE $table ADD $column_name $data_type");
+                            // modify table
+                            if ($this->db_engine->query("ALTER TABLE $table CHANGE $old_column $column_name $data_type")) {
+                                    //
+                            } else {
+                                if ($data_type === "varchar") {
+                                    $data_type = "VARCHAR (255)";
+                                } elseif ($data_type === "int") {
+                                    $data_type = "INT (11)";
+                                } elseif ($data_type === "datetime") {
+                                    $data_type = "DATETIME";
+                                } elseif ($data_type === "date") {
+                                    $data_type = "DATE";
+                                } elseif ($data_type === "text") {
+                                    $data_type = "TEXT(1500)";
+                                }
+                                
+                                
+                                $this->db_engine->query("ALTER TABLE $table ADD $column_name $data_type");
+                            }
+                            // add column
                         }
-                        // add column
+                        $i++;
                     }
-                    $i++;
                 }
+            } else {
+                // check if database exists
+                global $config;
+
+                $table = static::class;
+                $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
+                
+                // Construct a query
+                $testing = get_class_vars(static::class);
+                $query_s = "";
+                $query_s .= "CREATE TABLE $table ( ";
+                foreach ($testing as $key => $value) {
+                    if ($value === "id") {
+                        $query_s .= $key ." INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY, ";
+                    } elseif ($value === "int") {
+                        $query_s .= $key ." INT (11), ";
+                    } elseif ($value === "varchar") {
+                        $query_s .= $key ." VARCHAR (255) NOT NULL,";
+                    }
+                }
+                $query_s = rtrim($query_s, ",");
+                $query_s .= ")";
+                
+                // table does not exist, create the table
+                $this->db_engine->query($query_s);
             }
         }
-        
-        
-        if (!$query->rowCount() && $this->create == true) {
-            // check if database exists
-            global $config;
-
-            $table = static::class;
-            $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
-            
-            // Construct a query
-            $testing = get_class_vars(static::class);
-            $query_s = "";
-            $query_s .= "CREATE TABLE $table ( ";
-            foreach ($testing as $key => $value) {
-                if ($value === "id") {
-                    $query_s .= $key ." INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY, ";
-                } elseif ($value === "int") {
-                    $query_s .= $key ." INT (11), ";
-                } elseif ($value === "varchar") {
-                    $query_s .= $key ." VARCHAR (255) NOT NULL,";
-                }
-            }
-            $query_s = rtrim($query_s, ",");
-            $query_s .= ")";
-            
-            // table does not exist, create the table
-            $this->db_engine->query($query_s);
-        }
-
         return static::class;
     }
     
