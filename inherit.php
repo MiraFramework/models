@@ -10,7 +10,7 @@ class Model
     public $arr = array();
     public $update = array();
     public $structure = array();
-    private $db_engine;
+    private $db_engine = false;
     
     public function __construct($default_database = null)
     {
@@ -33,16 +33,7 @@ class Model
             );
         
             $this->db_engine->query("CREATE DATABASE IF NOT EXISTS ".$this->database);
-        }
 
-        $connection = 'mysql:host='.$config['database']['host'].';dbname='.$this->database;
-        $this->db_engine = new \PDO(
-            $connection,
-            $config['database']['username'],
-            $config['database']['password']
-        );
-        
-        if ($this->create == true) {
             $table = static::class;
             $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
             if ($query->rowCount()) {
@@ -131,6 +122,19 @@ class Model
             }
         }
         return static::class;
+    }
+
+    public function makeDatabaseConnection()
+    {
+        if (!$this->db_engine) {
+            global $config;
+            $connection = 'mysql:host='.$config['database']['host'].';dbname='.$this->database;
+            $this->db_engine = new \PDO(
+                $connection,
+                $config['database']['username'],
+                $config['database']['password']
+            );
+        }
     }
     
     public function setDatabase($database)
@@ -463,6 +467,8 @@ class Model
             return $this->fetchCache($queryString);
         }
 
+        $this->makeDatabaseConnection();
+
         $query = $this->db_engine->query($queryString);
 
         $this->last_call = $query->fetchAll();
@@ -481,6 +487,8 @@ class Model
         if ($this->fetchCache($queryString)) {
             return $this->fetchCache($queryString);
         }
+
+        $this->makeDatabaseConnection();
 
         $query = $this->db_engine->query($queryString);
 
@@ -501,6 +509,8 @@ class Model
         if ($this->fetchCache($queryString)) {
             return $this->fetchCache($queryString);
         }
+
+        $this->makeDatabaseConnection();
         
         $query = $this->db_engine->query($queryString);
 
@@ -514,6 +524,7 @@ class Model
 
     public function toJson($where_clause = 1)
     {
+        $this->makeDatabaseConnection();
         $table = $this->getTableName();
 
         $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
@@ -525,6 +536,7 @@ class Model
 
     public function query($sql, $where = '')
     {
+        $this->makeDatabaseConnection();
         $table = $this->getTableName();
 
         $query = $this->db_engine->query($sql." $where");
@@ -538,6 +550,7 @@ class Model
     
     public function update($where_clause = 1)
     {
+        $this->makeDatabaseConnection();
         $sql = $this->createUpdateQuery($where_clause);
         
         return $query = $this->db_engine->query($sql);
@@ -545,6 +558,7 @@ class Model
 
     public function updateFromPost($post, $where_clause = 1)
     {
+        $this->makeDatabaseConnection();
         foreach ($post as $key => $value) {
             $values .= "`".$key."` = '".$value."',";
         }
@@ -561,6 +575,7 @@ class Model
     
     public function delete($where_clause = 1)
     {
+        $this->makeDatabaseConnection();
         $this->delete_clause = $where_clause;
 
         $table = $this->getTableName();
@@ -570,6 +585,7 @@ class Model
     
     public function deleteAll($where_clause = 1)
     {
+        $this->makeDatabaseConnection();
         $this->delete_clause = $where_clause;
 
         $table = $this->getTableName();
