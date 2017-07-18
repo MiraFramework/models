@@ -25,7 +25,7 @@ class Model
         // check if database exists
         global $config;
         if ($this->create == true) {
-            $connection = 'mysql:host=localhost;';
+            $connection = 'mysql:host='.$config['database']['host'].';';
             $this->db_engine = new \PDO(
                 $connection,
                 $config['database']['username'],
@@ -35,7 +35,7 @@ class Model
             $this->db_engine->query("CREATE DATABASE IF NOT EXISTS ".$this->database);
         }
 
-        $connection = 'mysql:host=localhost;dbname='.$this->database;
+        $connection = 'mysql:host='.$config['database']['host'].';dbname='.$this->database;
         $this->db_engine = new \PDO(
             $connection,
             $config['database']['username'],
@@ -328,7 +328,7 @@ class Model
             if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
                 return $table = str_replace("_", "-", static::class);
             } else {
-               return $table = static::class;
+                return $table = static::class;
             }
         } else {
             return $table = static::class;
