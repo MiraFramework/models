@@ -429,6 +429,11 @@ class Model
                 if (!empty($json_decode)) {
                     return $json_decode;
                 }
+
+                if ($this->json) {
+                    return json_encode(unserialize($return));
+                }
+                
                 return unserialize($return);
             }
         }
