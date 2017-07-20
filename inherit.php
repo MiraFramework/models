@@ -22,111 +22,186 @@ class Model
             $this->database = $default_database;
         }
 
-        // check if database exists
-        global $config;
-        if ($this->create == true) {
-            $connection = 'mysql:host='.$config['database']['host'].';';
-            $this->db_engine = new \PDO(
-                $connection,
-                $config['database']['username'],
-                $config['database']['password']
-            );
+        if (method_exists($this, 'create')) {
+            $this->create = true;
+            $this->createDatabaseIfNotExists();
+            $this->create();
+            $this->createTable();
+        }
+
         
-            $this->db_engine->query("CREATE DATABASE IF NOT EXISTS ".$this->database);
+        return static::class;
+    }
+
+    public function createTable()
+    {
+        if ($this->create == true) {
+            $this->createDatabaseIfNotExists();
 
             $table = static::class;
             $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
-            if (method_exists($query, 'rowCount')) {
-                // the table exists and create is true. try and add the columns
-                $query = $this->db_engine->query("SELECT * FROM $table WHERE 1");
-                $get_column = $query->GetColumnMeta(1);
+            if ($query->rowCount()) {
+                // table exists, alter columns
+                $table_columns = $this->getColumns();
                 
                 // match the get column ['name'] to each element in the array.
-                $variables = get_class_vars(static::class);
-                
-                
-                foreach ($variables as $variable) {
-                    $get_column = $query->GetColumnMeta($i);
-                    
-                    if ($variable) {
-                        //if ($get_column['name'] == array_keys($variables)[$i+1] ){
-                        if (in_array($get_column['name'], array_keys($variables), true)) {
-                            //
-                        } else {
-                            // add the columns to the table
-                            $column_name = array_keys($variables)[$i+1];
-                            $data_type = array_values($variables)[$i+1];
-                            $old_column = $get_column['name'];
-                            
-                            if ($data_type === "varchar") {
-                                $data_type = "VARCHAR (255)";
-                            } elseif ($data_type === "int") {
-                                $data_type = "INT (11)";
-                            } elseif ($data_type === "datetime") {
-                                $data_type = "DATETIME";
-                            } elseif ($data_type === "date") {
-                                $data_type = "DATE";
-                            } elseif ($data_type === "text") {
-                                $data_type = "TEXT(1500)";
-                            }
-                            
-                            // modify table
-                            if ($this->db_engine->query("ALTER TABLE $table CHANGE $old_column $column_name $data_type")) {
-                                    //
-                            } else {
-                                if ($data_type === "varchar") {
-                                    $data_type = "VARCHAR (255)";
-                                } elseif ($data_type === "int") {
-                                    $data_type = "INT (11)";
-                                } elseif ($data_type === "datetime") {
-                                    $data_type = "DATETIME";
-                                } elseif ($data_type === "date") {
-                                    $data_type = "DATE";
-                                } elseif ($data_type === "text") {
-                                    $data_type = "TEXT(1500)";
-                                }
-                                
-                                
-                                $this->db_engine->query("ALTER TABLE $table ADD $column_name $data_type");
-                            }
-                            // add column
-                        }
-                        $i++;
+                $create_columns = $this->getClassCreateVariables();
+
+                $i = 0;
+                // alter table loop
+                foreach ($create_columns as $key => $value) {
+                    if ($table_columns[$i]) {
+                        $query_string =  "ALTER TABLE $table CHANGE $table_columns[$i] ".$key;
+                    } else {
+                        $query_string = "ALTER TABLE $table ADD ".$key;
                     }
+
+                    if (preg_match('/^id/', $value)) {
+                        $query_string .= " INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY";
+                    } elseif (preg_match('/^int/', $value)) {
+                        $query_string .= " INT (11)";
+                    } elseif (preg_match('/^varchar/', $value)) {
+                        $keys = explode(":", $value);
+                        if (!$keys[1]) {
+                            $keys[1] = 200;
+                        }
+                        $query_string .= " VARCHAR ($keys[1]) NOT NULL";
+                    } elseif (preg_match('/^text/', $value)) {
+                        $keys = explode(":", $value);
+                        if (!$keys[1]) {
+                            $keys[1] = 200;
+                        }
+                        $query_string .= " TEXT NOT NULL";
+                    } elseif (preg_match('/^datetime/', $value)) {
+                        $keys = explode(":", $value);
+                        $query_string .= " DATETIME NOT NULL";
+
+                        if ($keys[1]) {
+                            $query_string .= " DEFAULT $keys[1]";
+                        }
+                    } elseif (preg_match('/^date/', $value)) {
+                        $keys = explode(":", $value);
+                        $query_string .= " DATE NOT NULL";
+
+                        if ($keys[1]) {
+                            if ($key = "CURRENT_TIMESTAMP") {
+                                $query_string .= " DEFAULT '".date('Y-m-d')."'";
+                            }
+                        }
+                    } elseif (preg_match('/^fk/', $value)) {
+                        $keys = explode(':', $value);
+                        $query_string .= " INT (11), DROP FOREIGN KEY `$table_columns[$i]_$keys[1]_$keys[2]_fk`, ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+
+                        if ($keys[3]) {
+                            $query_string .= " ON DELETE $keys[3]";
+                        }
+
+                        if ($keys[4]) {
+                             $query_string .= " ON UPDATE $keys[4]";
+                        }
+                    }
+
+                    if (!$this->db_engine->query($query_string)) {
+                        if ($this->db_engine->errorInfo()[1] == 1025) {
+                            // Cannot drop foreign key constraint
+                            if ($table_columns[$i]) {
+                                $query_string =  "ALTER TABLE $table CHANGE $table_columns[$i] ".$key;
+                            } else {
+                                $query_string = "ALTER TABLE $table ADD ".$key;
+                            }
+                            $query_string .= " INT (11), ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+
+                            if ($keys[3]) {
+                                $query_string .= " ON DELETE $keys[3]";
+                            }
+
+                            if ($keys[4]) {
+                                 $query_string .= " ON UPDATE $keys[4]";
+                            }
+                        }
+                        $this->db_engine->query($query_string);
+                    }
+                    
+                    $i++;
                 }
             } else {
-                // check if database exists
-                global $config;
-
-                $table = static::class;
-                $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
-                
+                // the table does not exist
                 // Construct a query
-                $testing = get_class_vars(static::class);
+                $testing = get_object_vars($this);
+                
                 $query_s = "";
-                $query_s .= "CREATE TABLE $table ( ";
                 foreach ($testing as $key => $value) {
-                    if ($value === "id") {
-                        $query_s .= $key ." INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY, ";
-                    } elseif ($value === "int") {
-                        $query_s .= $key ." INT (11), ";
-                    } elseif ($value === "varchar") {
-                        $query_s .= $key ." VARCHAR (255) NOT NULL,";
+                    if (is_string($value)) {
+                        if ($value === "id") {
+                            $query_s .= $key ." INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,";
+                        } elseif ($value === "int") {
+                            $query_s .= $key ." INT (11),";
+                        } elseif (preg_match('/^varchar/', $value)) {
+                            $keys = explode(":", $value);
+                            if (!$keys[1]) {
+                                $keys[1] = 200;
+                            }
+                            $query_s .= $key ." VARCHAR ($keys[1]) NOT NULL,";
+                        } elseif (preg_match('/^fk/', $value)) {
+                            $keys = explode(':', $value);
+                            $query_s .= $key ." INT (11), CONSTRAINT `fk_your_foreign_key` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+
+                            if ($keys[3]) {
+                                $query_s .= " ON DELETE $keys[3]";
+                            }
+
+                            if ($keys[4]) {
+                                 $query_s .= " ON UPDATE $keys[4]";
+                            }
+                        }
                     }
                 }
                 $query_s = rtrim($query_s, ",");
-                $query_s .= ")";
-                
+                $query = "CREATE TABLE $table ( ".$query_s . ')';
+                //$query_s .= "))";
+
+                echo $query;
+                echo "<br><br>";
                 // table does not exist, create the table
-                $this->db_engine->query($query_s);
+                $qu = $this->db_engine->query($query);
+                print_r($this->db_engine->errorInfo());
             }
         }
-        return static::class;
+    }
+
+    private function getClassCreateVariables()
+    {
+        $allClassProperties = get_object_vars($this);
+        $defaultClassProperties = get_class_vars(static::class);
+
+        // remove the PDO object from the array
+        unset($allClassProperties['db_engine']);
+        unset($allClassProperties['create']);
+        unset($allClassProperties['lastrow']);
+
+        return array_diff($allClassProperties, $defaultClassProperties);
+    }
+
+    public function createDatabaseIfNotExists()
+    {
+        $this->database_connected = false;
+        global $config;
+        $connection = 'mysql:host='.$config['database']['host'].';';
+        $this->db_engine = new \PDO(
+            $connection,
+            $config['database']['username'],
+            $config['database']['password']
+        );
+    
+        $this->db_engine->query("CREATE DATABASE IF NOT EXISTS ".$this->database);
+
+        $this->makeDatabaseConnection();
+        return true;
     }
 
     public function makeDatabaseConnection()
     {
-        if (!$this->db_engine) {
+        if (!$this->database_connected) {
             global $config;
             $connection = 'mysql:host='.$config['database']['host'].';dbname='.$this->database;
             $this->db_engine = new \PDO(
@@ -135,6 +210,94 @@ class Model
                 $config['database']['password']
             );
         }
+    }
+
+    public function column($rowName)
+    {
+        $this->$rowName = 'lastrow';
+        $this->lastrow = $rowName;
+        return $this;
+    }
+
+    public function varchar()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "varchar";
+        return $this;
+    }
+
+    public function length($length)
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow .= ":".$length;
+        return $this;
+    }
+
+    public function primaryKey()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "id";
+        return $this;
+    }
+
+    public function int()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "int";
+        return $this;
+    }
+
+    public function foreignKey($referenceTable)
+    {
+        $table = explode('.', $referenceTable);
+
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "fk".":".$table[0].":".$table[1];
+        return $this;
+    }
+
+    public function dateTime()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "datetime";
+        return $this;
+    }
+
+    public function date()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "date";
+        return $this;
+    }
+
+    public function text()
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow = "text";
+        return $this;
+    }
+
+    public function default($default_value)
+    {
+        $lastrow = $this->lastrow;
+        if ($default_value == 'now') {
+            $this->$lastrow .= ":CURRENT_TIMESTAMP";
+        }
+        return $this;
+    }
+
+    public function onDelete($option)
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow .= ":".$option;
+        return $this;
+    }
+
+    public function onUpdate($option)
+    {
+        $lastrow = $this->lastrow;
+        $this->$lastrow .= ":".$option;
+        return $this;
     }
     
     public function setDatabase($database)
