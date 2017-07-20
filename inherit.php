@@ -36,7 +36,7 @@ class Model
 
             $table = static::class;
             $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
-            if ($query->rowCount()) {
+            if (method_exists($query, 'rowCount')) {
                 // the table exists and create is true. try and add the columns
                 $query = $this->db_engine->query("SELECT * FROM $table WHERE 1");
                 $get_column = $query->GetColumnMeta(1);
