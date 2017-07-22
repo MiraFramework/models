@@ -1,6 +1,6 @@
 <?php
 
-namespace Mira;
+namespace Mira\Models;
 
 $config = require_once $_SERVER['DOCUMENT_ROOT']."/config/config.php";
 
@@ -160,8 +160,6 @@ class Model
                 $query = "CREATE TABLE $table ( ".$query_s . ')';
                 //$query_s .= "))";
 
-                echo $query;
-                echo "<br><br>";
                 // table does not exist, create the table
                 $qu = $this->db_engine->query($query);
                 print_r($this->db_engine->errorInfo());
@@ -634,11 +632,9 @@ class Model
 
     public function triggerEvent($event)
     {
-        //echo $event;
         if ($this->Events) {
             if (array_key_exists($event, $this->Events)) {
                 $this->callEvent($this->Events[$event]);
-                echo "<hr>";
             }
         }
     }
