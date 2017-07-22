@@ -162,7 +162,6 @@ class Model
 
                 // table does not exist, create the table
                 $qu = $this->db_engine->query($query);
-                print_r($this->db_engine->errorInfo());
             }
         }
     }
