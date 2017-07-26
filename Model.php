@@ -35,10 +35,9 @@ class Model
 
     public function createTable()
     {
+        unset($this->lastrow);
         if ($this->create == true) {
-            $this->createDatabaseIfNotExists();
-
-            $table = static::class;
+            $table = $this->getTableName();
             $query = $this->db_engine->query("SHOW TABLES LIKE '$table' ");
             if ($query->rowCount()) {
                 // table exists, alter columns
@@ -57,7 +56,7 @@ class Model
                     }
 
                     if (preg_match('/^id/', $value)) {
-                        $query_string .= " INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY";
+                        $query_string .= " INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY ";
                     } elseif (preg_match('/^int/', $value)) {
                         $query_string .= " INT (11)";
                     } elseif (preg_match('/^varchar/', $value)) {
@@ -90,7 +89,7 @@ class Model
                         }
                     } elseif (preg_match('/^fk/', $value)) {
                         $keys = explode(':', $value);
-                        $query_string .= " INT (11), DROP FOREIGN KEY `$table_columns[$i]_$keys[1]_$keys[2]_fk`, ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+                        $query_string .= " INT (11) UNSIGNED, DROP FOREIGN KEY `$table_columns[$i]_$keys[1]_$keys[2]_fk`, ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
 
                         if ($keys[3]) {
                             $query_string .= " ON DELETE $keys[3]";
@@ -144,7 +143,8 @@ class Model
                             $query_s .= $key ." VARCHAR ($keys[1]) NOT NULL,";
                         } elseif (preg_match('/^fk/', $value)) {
                             $keys = explode(':', $value);
-                            $query_s .= $key ." INT (11), CONSTRAINT `fk_your_foreign_key` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+                            var_dump($this);
+                            $query_s .= $key ." INT (11) UNSIGNED, CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
 
                             if ($keys[3]) {
                                 $query_s .= " ON DELETE $keys[3]";
@@ -157,7 +157,7 @@ class Model
                     }
                 }
                 $query_s = rtrim($query_s, ",");
-                $query = "CREATE TABLE $table ( ".$query_s . ')';
+                $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
                 //$query_s .= "))";
 
                 // table does not exist, create the table
@@ -244,12 +244,13 @@ class Model
         return $this;
     }
 
-    public function foreignKey($referenceTable)
+    public function foreignKey($referenceTable, $fk = 'id')
     {
-        $table = explode('.', $referenceTable);
+        $referenceTable = new $referenceTable();
+        $referenceTable->getTableName();
 
         $lastrow = $this->lastrow;
-        $this->$lastrow = "fk".":".$table[0].":".$table[1];
+        $this->$lastrow = "fk".":".$referenceTable->database.".".$referenceTable->getTableName().":".$fk;
         return $this;
     }
 
@@ -391,18 +392,16 @@ class Model
 
     public function getColumns()
     {
-        global $config;
-
-        $table_name = static::class;
+        $table_name = $this->getTableName();
         
-        if (strpos(static::class, "_") !== false) {
+        if (strpos($table_name, "_") !== false) {
             if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
+                $table = str_replace("_", "-", $table_name);
             } else {
-                $table = static::class;
+                $table = $this->getTableName();
             }
         } else {
-            $table = static::class;
+            $table = $this->getTableName();
         }
 
         $rs = $this->db_engine->query("SELECT * FROM $table LIMIT 1");
@@ -490,12 +489,12 @@ class Model
     {
         if (strpos(static::class, "_") !== false) {
             if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                return $table = str_replace("_", "-", static::class);
+                return str_replace("_", "-", strtolower(end(explode("\\", static::class))));
             } else {
-                return $table = static::class;
+                return strtolower(end(explode("\\", static::class)));
             }
         } else {
-            return $table = static::class;
+            return strtolower(end(explode("\\", static::class)));
         }
     }
     
