@@ -753,6 +753,17 @@ class Model
 
         return $this->getCall();
     }
+
+    public function find($id)
+    {
+        $result = $this->get("id = '$id'");
+        foreach ($result as $key => $value) {
+            if (is_string($key)) {
+                $this->$key = $value;
+            }
+        }
+        return $this;
+    }
     
     public function filter($where_clause = null)
     {
