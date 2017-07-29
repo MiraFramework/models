@@ -30,7 +30,7 @@ class Model
         }
 
         
-        return static::class;
+        return $this->getTableName();
     }
 
     public function createTable()
@@ -88,16 +88,7 @@ class Model
                             }
                         }
                     } elseif (preg_match('/^fk/', $value)) {
-                        $keys = explode(':', $value);
-                        $query_string .= " INT (11) UNSIGNED, DROP FOREIGN KEY `$table_columns[$i]_$keys[1]_$keys[2]_fk`, ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
-
-                        if ($keys[3]) {
-                            $query_string .= " ON DELETE $keys[3]";
-                        }
-
-                        if ($keys[4]) {
-                             $query_string .= " ON UPDATE $keys[4]";
-                        }
+                        $query_string .= $this->createForeignKey($key, $value);
                     }
 
                     if (!$this->db_engine->query($query_string)) {
@@ -126,10 +117,9 @@ class Model
             } else {
                 // the table does not exist
                 // Construct a query
-                $testing = get_object_vars($this);
-                
+                $object_vars = get_object_vars($this);
                 $query_s = "";
-                foreach ($testing as $key => $value) {
+                foreach ($object_vars as $key => $value) {
                     if (is_string($value)) {
                         if ($value === "id") {
                             $query_s .= $key ." INT (11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,";
@@ -141,29 +131,48 @@ class Model
                                 $keys[1] = 200;
                             }
                             $query_s .= $key ." VARCHAR ($keys[1]) NOT NULL,";
-                        } elseif (preg_match('/^fk/', $value)) {
-                            $keys = explode(':', $value);
-                            var_dump($this);
-                            $query_s .= $key ." INT (11) UNSIGNED, CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
-
-                            if ($keys[3]) {
-                                $query_s .= " ON DELETE $keys[3]";
-                            }
-
-                            if ($keys[4]) {
-                                 $query_s .= " ON UPDATE $keys[4]";
-                            }
                         }
                     }
                 }
                 $query_s = rtrim($query_s, ",");
                 $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
-                //$query_s .= "))";
 
                 // table does not exist, create the table
-                $qu = $this->db_engine->query($query);
+                $this->db_engine->query($query);
+
+                
+                $this->addForeignKey($object_vars);
             }
         }
+    }
+
+    private function addForeignKey($object_vars)
+    {
+        foreach ($object_vars as $key => $value) {
+            if (preg_match('/^fk/', $value)) {
+                $keys = explode(':', $value);
+                $table = $this->getTableName();
+                $add_foreign_key_field = "ALTER TABLE $table ADD ".$key." INT (11) UNSIGNED";
+                $add_foreign_key_constraint = "ALTER TABLE $table ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+
+                if ($keys[3]) {
+                    $add_foreign_key_constraint .= " ON DELETE $keys[3]";
+                }
+
+                if ($keys[4]) {
+                    $add_foreign_key_constraint .= " ON UPDATE $keys[4]";
+                }
+                $this->db_engine->query(
+                    $add_foreign_key_field
+                );
+
+                $this->db_engine->query(
+                    $add_foreign_key_constraint
+                );
+            }
+        }
+        
+        return $query_string;
     }
 
     private function getClassCreateVariables()
@@ -316,6 +325,8 @@ class Model
     public function __call($method, $value)
     {
         //remove set from the variable
+
+        $this->makeDatabaseConnection();
         
         $choice = explode("_", $method);
         
@@ -336,7 +347,7 @@ class Model
             $this->arr[$method] = $value[0];
         } else {
 
-            $class_name = static::class;
+            $class_name = $this->getTableName();
             $query = $this->db_engine->query("
                 SELECT `REFERENCED_TABLE_NAME`, `REFERENCED_TABLE_SCHEMA`, `TABLE_SCHEMA` 
                 FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` 
@@ -417,17 +428,7 @@ class Model
     {
         global $config;
 
-        $table_name = static::class;
-
-        if (strpos(static::class, "_") !== false) {
-            if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
-                $table = str_replace("_", "-", static::class);
-            } else {
-                $table = static::class;
-            }
-        } else {
-            $table = static::class;
-        }
+        $table_name = $this->getTableName();
 
         $rs = $this->db_engine->query("SELECT * FROM $table LIMIT 1");
         for ($i = 0; $i < $rs->columnCount(); $i++) {
