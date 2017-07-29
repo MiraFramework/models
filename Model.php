@@ -47,6 +47,7 @@ class Model
                 $create_columns = $this->getClassCreateVariables();
 
                 $i = 0;
+
                 // alter table loop
                 foreach ($create_columns as $key => $value) {
                     if ($table_columns[$i]) {
@@ -88,7 +89,8 @@ class Model
                             }
                         }
                     } elseif (preg_match('/^fk/', $value)) {
-                        $query_string .= $this->createForeignKey($key, $value);
+                        var_dump($table_columns);
+                        $query_string .= $this->updateForeignKey($table_columns[$i], $key, $value);
                     }
 
                     if (!$this->db_engine->query($query_string)) {
@@ -146,6 +148,43 @@ class Model
         }
     }
 
+    private function updateForeignKey($tablecolumn, $key, $value)
+    {
+        $keys = explode(':', $value);
+        $table = $this->getTableName();
+        $create_columns = $this->getClassCreateVariables();
+        echo $drop_foreign_key .= "
+            ALTER TABLE $table DROP 
+            FOREIGN KEY `$keys[1]"._."$keys[2]_fk`";
+
+        if ($tablecolumn){
+            echo $alter_column = "
+                ALTER TABLE $table
+                CHANGE $tablecolumn $key INT (11) UNSIGNED";
+        } else {
+            echo $alter_column = "
+                ALTER TABLE $table
+                ADD $key INT (11) UNSIGNED";
+        }
+
+        echo $add_foreign_key_constraint = "
+            ALTER TABLE $table 
+            ADD CONSTRAINT `$keys[1]_$keys[2]_fk` 
+            FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+
+        if ($keys[3]) {
+            $add_foreign_key_constraint .= " ON DELETE $keys[3]";
+        }
+
+        if ($keys[4]) {
+             $add_foreign_key_constraint .= " ON UPDATE $keys[4]";
+        }
+
+        $this->db_engine->query($drop_foreign_key);
+        $this->db_engine->query($alter_column);
+        $this->db_engine->query($add_foreign_key_constraint);
+    }
+
     private function addForeignKey($object_vars)
     {
         foreach ($object_vars as $key => $value) {
@@ -153,7 +192,7 @@ class Model
                 $keys = explode(':', $value);
                 $table = $this->getTableName();
                 $add_foreign_key_field = "ALTER TABLE $table ADD ".$key." INT (11) UNSIGNED";
-                $add_foreign_key_constraint = "ALTER TABLE $table ADD CONSTRAINT `$key"."_$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
+                echo $add_foreign_key_constraint = "ALTER TABLE $table ADD CONSTRAINT `$keys[1]_$keys[2]_fk` FOREIGN KEY ($key) REFERENCES $keys[1]($keys[2])";
 
                 if ($keys[3]) {
                     $add_foreign_key_constraint .= " ON DELETE $keys[3]";
