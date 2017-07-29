@@ -89,7 +89,6 @@ class Model
                             }
                         }
                     } elseif (preg_match('/^fk/', $value)) {
-                        var_dump($table_columns);
                         $query_string .= $this->updateForeignKey($table_columns[$i], $key, $value);
                     }
 
