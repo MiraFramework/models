@@ -172,7 +172,7 @@ class Model
             ALTER TABLE $table DROP 
             FOREIGN KEY `$keys[1]"._."$keys[2]_fk`";
 
-        if ($tablecolumn){
+        if ($tablecolumn) {
             $alter_column = "
                 ALTER TABLE $table
                 CHANGE $tablecolumn $key INT (11) UNSIGNED";
@@ -527,17 +527,25 @@ class Model
     {
         foreach ($post as $key => $value) {
             $cols .= "--".$key;
-            $values .= "--'".$value."'";
+            $values .= ":".$key.",";
         }
 
         $cols = str_replace("--", ",", trim($cols));
         $cols = ltrim($cols, ',');
-        $values = str_replace("--", ",", trim($values));
-        $values = ltrim($values, ",");
+        //$values = str_replace("--", ",", trim($values));
+        $values = rtrim($values, ",");
 
         $table_name = $this->getTableName();
 
-        return $view_query = "INSERT INTO `$table_name` ($cols) VALUES ($values)";
+        $view_query = "INSERT INTO `$table_name` ($cols) VALUES ($values)";
+
+        $prepared_query = $this->db_engine->prepare($view_query);
+
+        foreach ($post as $key => $value) {
+            $prepared_query->bindValue($key, $value);
+        }
+
+        return $prepared_query;
     }
 
     public function getTableName()
@@ -557,14 +565,22 @@ class Model
     
     public function insert()
     {
+        echo "inserting";
         $insert_query = $this->createInsertQuery();
-        return $query = $this->db_engine->prepare($insert_query);
+        $prepared_query = $this->db_engine->prepare($insert_query);
+
+        foreach ($this->arr as $key => $value) {
+            $prepared_query->bindParam($key, $value);
+        }
+
+        return $prepared_query;
     }
 
     public function insertFromPost($post)
     {
         $insert_query = $this->createInsertQueryFromPost($post);
-        return $query = $this->db_engine->query($insert_query);
+        return $insert_query->execute();
+        //return $query = $this->db_engine->query($insert_query);
     }
 
     public function json()
