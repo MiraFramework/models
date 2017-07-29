@@ -14,8 +14,8 @@ class Model
     
     public function __construct($default_database = null)
     {
-        if (isset($this->db)) {
-            $this->database = $this->db;
+        if (isset($this->database)) {
+            //
         } elseif ($default_database === null) {
             echo("DID NOT SUPPLY DATABASE INSIDE INSTATIATED CLASS");
         } else {
