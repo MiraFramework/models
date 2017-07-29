@@ -132,11 +132,27 @@ class Model
                                 $keys[1] = 200;
                             }
                             $query_s .= $key ." VARCHAR ($keys[1]) NOT NULL,";
+                        } elseif (preg_match('/^datetime/', $value)) {
+                            $keys = explode(":", $value);
+                            $query_s .= $key." DATETIME NOT NULL";
+
+                            if ($keys[1]) {
+                                $query_s .= " DEFAULT $keys[1]";
+                            }
+                        } elseif (preg_match('/^date/', $value)) {
+                            $keys = explode(":", $value);
+                            $query_s .= $key." DATE NOT NULL";
+
+                            if ($keys[1]) {
+                                if ($key = "CURRENT_TIMESTAMP") {
+                                    $query_s .= " DEFAULT '".date('Y-m-d')."'";
+                                }
+                            }
                         }
                     }
                 }
                 $query_s = rtrim($query_s, ",");
-                $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
+                echo $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
 
                 // table does not exist, create the table
                 $this->db_engine->query($query);
