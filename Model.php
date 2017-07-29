@@ -422,28 +422,21 @@ class Model
             $reference_schema = $key_table['REFERENCED_TABLE_SCHEMA'];
             $table_schema = $key_table['TABLE_SCHEMA'];
 
-            //print_r($reference_schema = $query->fetchAll());
-            // get column name "name"
-            
-            // return single result?
-
-            //endstate
-            // $gym->eliteFour1Team(2)
-            // get 1
-            // returns where teams equals 1
-            
             if (!$value) {
-                $cl = new $reference_table($table_schema);
+                $reflection = new \ReflectionClass(static::class);
+                $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
+                $cl = new $foreign_class();
                 
                 //$cl->getColumnName();
                 $sql = "SELECT * FROM $table_schema.$class_name, $reference_schema.$reference_table WHERE $table_schema.$class_name.$method = $reference_schema.$reference_table.id";
 
                 return $cl;
             } elseif (is_integer($value[0])) {
-                $fk = $this->filter("id = '$value[0]' ")[0][$method];
-
-                $cl = new $reference_table();
-                return $cl->filter("id = '$fk' ")[0];
+                echo $reference_schema;
+                $reflection = new \ReflectionClass(static::class);
+                $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
+                $cl = new $foreign_class();
+                return $cl->find($value[0]);
             } else {
                 $cl = new $reference_table();
                 $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
@@ -757,12 +750,16 @@ class Model
     public function find($id)
     {
         $result = $this->get("id = '$id'");
-        foreach ($result as $key => $value) {
-            if (is_string($key)) {
-                $this->$key = $value;
+        if (count($result)) {
+            foreach ($result as $key => $value) {
+                if (is_string($key)) {
+                    $this->$key = $value;
+                }
             }
+            return $this;
         }
-        return $this;
+
+        return null;
     }
     
     public function filter($where_clause = null)
