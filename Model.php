@@ -152,7 +152,7 @@ class Model
                     }
                 }
                 $query_s = rtrim($query_s, ",");
-                echo $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
+                $query = "CREATE TABLE $table ( ".$query_s . ") ENGINE=InnoDB;";
 
                 // table does not exist, create the table
                 $this->db_engine->query($query);
@@ -432,7 +432,6 @@ class Model
 
                 return $cl;
             } elseif (is_integer($value[0])) {
-                echo $reference_schema;
                 $reflection = new \ReflectionClass(static::class);
                 $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
                 $cl = new $foreign_class();
@@ -480,7 +479,6 @@ class Model
         $rs = $this->db_engine->query("SELECT * FROM $table LIMIT 1");
         for ($ei = 0; $i < $rs->columnCount(); $i++) {
             $col = $rs->getColumnMeta($i);
-            print_r($col);
             $columns[] = $col['name'];
         }
         return $columns;
@@ -561,7 +559,6 @@ class Model
     
     public function insert()
     {
-        echo "inserting";
         $insert_query = $this->createInsertQuery();
         $prepared_query = $this->db_engine->prepare($insert_query);
 
@@ -575,10 +572,7 @@ class Model
     public function insertFromPost($post)
     {
         $insert_query = $this->createInsertQueryFromPost($post);
-        $insert_query->execute();
-        $this->db_engine->errorInfo();
-        echo $this->db_engine->lastInsertId();
-        //return $query = $this->db_engine->query($insert_query);
+        $insert_query->execute();        
     }
 
     public function json()
