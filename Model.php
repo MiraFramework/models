@@ -488,6 +488,7 @@ class Model
 
     public function createInsertQuery()
     {
+        $this->makeDatabaseConnection();
         foreach (array_keys($this->arr) as $key) {
             $newkey .= " ".$key;
         }
@@ -504,6 +505,7 @@ class Model
 
     public function createUpdateQuery($where_clause)
     {
+        $this->makeDatabaseConnection();
         foreach ($this->update as $key => $value) {
             $values .= "`".$key."` = '".$value."',";
         }
@@ -518,6 +520,7 @@ class Model
 
     public function createInsertQueryFromPost($post)
     {
+        $this->makeDatabaseConnection();
         foreach ($post as $key => $value) {
             $cols .= "--".$key;
             $values .= ":".$key.",";
@@ -535,6 +538,7 @@ class Model
         $prepared_query = $this->db_engine->prepare($view_query);
 
         foreach ($post as $key => $value) {
+            echo $key, $value;
             $prepared_query->bindValue($key, $value);
         }
 
@@ -572,7 +576,9 @@ class Model
     public function insertFromPost($post)
     {
         $insert_query = $this->createInsertQueryFromPost($post);
-        return $insert_query->execute();
+        $insert_query->execute();
+        $this->db_engine->errorInfo();
+        echo $this->db_engine->lastInsertId();
         //return $query = $this->db_engine->query($insert_query);
     }
 
