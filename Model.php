@@ -478,7 +478,7 @@ class Model
         $table_name = $this->getTableName();
 
         $rs = $this->db_engine->query("SELECT * FROM $table LIMIT 1");
-        for ($i = 0; $i < $rs->columnCount(); $i++) {
+        for ($ei = 0; $i < $rs->columnCount(); $i++) {
             $col = $rs->getColumnMeta($i);
             print_r($col);
             $columns[] = $col['name'];
@@ -538,7 +538,6 @@ class Model
         $prepared_query = $this->db_engine->prepare($view_query);
 
         foreach ($post as $key => $value) {
-            echo $key, $value;
             $prepared_query->bindValue($key, $value);
         }
 
