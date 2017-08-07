@@ -559,6 +559,7 @@ class Model
     
     public function insert()
     {
+        $this->triggerEvent('creating');
         $insert_query = $this->createInsertQuery();
         $prepared_query = $this->db_engine->prepare($insert_query);
 
@@ -569,10 +570,13 @@ class Model
         return $prepared_query;
     }
 
-    public function insertFromPost($post)
+    public function insertFromPost()
     {
-        $insert_query = $this->createInsertQueryFromPost($post);
-        $insert_query->execute();        
+        $this->triggerEvent('creating');
+        $insert_query = $this->createInsertQueryFromPost($_POST);
+        $insert_query->execute();
+        $this->triggerEvent('created');
+        return $this;
     }
 
     public function json()
@@ -679,14 +683,14 @@ class Model
         $this->cache = false;
     }
 
-    private function callEvent($event)
+    private function callEvent($event, $trigger)
     {
         $pos = strrpos($event, "\\");
 
         if ($pos !== false) {
-            $subject = substr_replace($event, "::", $pos, strlen("\\"));
+            $subject = $event."::".$trigger;
         }
-        $new_instance = new $this;
+        $new_instance = $this;
         unset($new_instance->Events);
         return $subject($new_instance);
     }
@@ -694,8 +698,11 @@ class Model
     public function triggerEvent($event)
     {
         if ($this->Events) {
-            if (array_key_exists($event, $this->Events)) {
-                $this->callEvent($this->Events[$event]);
+            foreach($this->Events as $key => $value){
+                if ($key == $event) {
+                    $this->callEvent($this->Events[$event], $key);
+                    return;
+                }
             }
         }
     }
