@@ -592,7 +592,7 @@ class Model
             $this->json = false;
             return json_encode($this->last_call);
         } else {
-            return $this->last_call;
+            return json_decode(json_encode($this->last_call), false);
         }
     }
 
@@ -728,6 +728,7 @@ class Model
 
         $this->storeCache();
         return $this->getCall();
+        return $this;
     }
     
     public function get($where_clause = 1)
