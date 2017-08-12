@@ -728,7 +728,6 @@ class Model
 
         $this->storeCache();
         return $this->getCall();
-        return $this;
     }
     
     public function get($where_clause = 1)
