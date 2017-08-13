@@ -549,6 +549,14 @@ class Model
         return $prepared_query;
     }
 
+    public function exclude()
+    {
+        foreach(func_get_args() as $key) {
+            unset($_POST[$key]);
+        }
+        return $this;
+    }
+
     public function insertFromPost()
     {
         $this->makeDatabaseConnection();
