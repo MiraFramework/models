@@ -7,8 +7,7 @@ $config = require_once $_SERVER['DOCUMENT_ROOT']."/config/config.php";
 class Model
 {
     public $database = null;
-    public $arr = array();
-    public $update = array();
+    private $update = false;
     public $structure = array();
     private $db_engine = false;
     
@@ -238,6 +237,8 @@ class Model
         unset($allClassProperties['db_engine']);
         unset($allClassProperties['create']);
         unset($allClassProperties['lastrow']);
+        unset($allClassProperties['update']);
+        unset($allClassProperties['last_query']);
 
         return array_diff($allClassProperties, $defaultClassProperties);
     }
@@ -378,72 +379,46 @@ class Model
     
     public function __call($method, $value)
     {
-        //remove set from the variable
-
         $this->makeDatabaseConnection();
         
         $choice = explode("_", $method);
+
+        $class_name = $this->getTableName();
+        $query = $this->db_engine->query("
+            SELECT `REFERENCED_TABLE_NAME`, `REFERENCED_TABLE_SCHEMA`, `TABLE_SCHEMA` 
+            FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` 
+            WHERE `TABLE_SCHEMA` = '$this->database' 
+            AND `TABLE_NAME` = '$class_name' 
+            AND `COLUMN_NAME` = '$method';
+        ");
         
-        if ($choice[0] == "update") {
-            // This is an update call
-            $method = explode("update", $method);
-            $method = strtolower(substr_replace($method[1], ":", 0, 0));
-            $method = str_replace("_", "", $method);
-            $this->update[$method] = $value[0];
-        } elseif ($choice[0] == "set") {
-            // make this elseif and do "set"
-            // This is an set call to be inserted into a database.
+        $key_table = $query->fetchAll()[0];
+
+        $reference_table = $key_table['REFERENCED_TABLE_NAME'];
+        $reference_schema = $key_table['REFERENCED_TABLE_SCHEMA'];
+        $table_schema = $key_table['TABLE_SCHEMA'];
+
+        if (!$value) {
+            $reflection = new \ReflectionClass(static::class);
+            $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
+            $cl = new $foreign_class();
             
-            $method = explode("set", $method);
-            $method = strtolower(substr_replace($method[1], ":", 0, 0));
-            $method = str_replace("_", "", $method);
-            
-            $this->arr[$method] = $value[0];
+            $sql = "SELECT * FROM $table_schema.$class_name, $reference_schema.$reference_table WHERE $table_schema.$class_name.$method = $reference_schema.$reference_table.id";
+
+            return $cl;
+        } elseif (is_integer($value[0])) {
+
+            $reflection = new \ReflectionClass(static::class);
+            $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
+            $cl = new $foreign_class();
+            return $cl->find($value[0]);
         } else {
 
-            $class_name = $this->getTableName();
-            $query = $this->db_engine->query("
-                SELECT `REFERENCED_TABLE_NAME`, `REFERENCED_TABLE_SCHEMA`, `TABLE_SCHEMA` 
-                FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` 
-                WHERE `TABLE_SCHEMA` = '$this->database' 
-                AND `TABLE_NAME` = '$class_name' 
-                AND `COLUMN_NAME` = '$method';
-                ");
-            /*
-            echo "SELECT `REFERENCED_TABLE_NAME`, `REFERENCED_TABLE_SCHEMA`, `TABLE_SCHEMA` 
-                FROM `INFORMATION_SCHEMA`.`KEY_COLUMN_USAGE` 
-                WHERE `TABLE_SCHEMA` = '$this->database' 
-                AND `TABLE_NAME` = '$class_name' 
-                AND `COLUMN_NAME` = '$method'";
-            */
-            $key_table = $query->fetchAll()[0];
-
-            $reference_table = $key_table['REFERENCED_TABLE_NAME'];
-            $reference_schema = $key_table['REFERENCED_TABLE_SCHEMA'];
-            $table_schema = $key_table['TABLE_SCHEMA'];
-
-            if (!$value) {
-                $reflection = new \ReflectionClass(static::class);
-                $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
-                $cl = new $foreign_class();
-                
-                //$cl->getColumnName();
-                $sql = "SELECT * FROM $table_schema.$class_name, $reference_schema.$reference_table WHERE $table_schema.$class_name.$method = $reference_schema.$reference_table.id";
-
-                return $cl;
-            } elseif (is_integer($value[0])) {
-                $reflection = new \ReflectionClass(static::class);
-                $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
-                $cl = new $foreign_class();
-                return $cl->find($value[0]);
-            } else {
-                $cl = new $reference_table();
-                $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
-
-                //echo "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
-                return $cl->query($sql);
-            }
+            $cl = new $reference_table();
+            $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
+            return $cl->query($sql);
         }
+    
         //return $cl->getColumns();
     }
 
@@ -487,8 +462,9 @@ class Model
     public function createInsertQuery()
     {
         $this->makeDatabaseConnection();
-        foreach (array_keys($this->arr) as $key) {
-            $newkey .= " ".$key;
+        foreach ($this->getClassCreateVariables() as $key => $value) {
+            
+            $newkey .= " :".$key;
         }
         
         $cols = str_replace(":", "", trim($newkey));
@@ -497,14 +473,15 @@ class Model
         $newkey = str_replace(" ", ",", trim($newkey));
 
         $table = $this->getTableName();
-
         return $view_query = "INSERT INTO `$table` ($cols) VALUES($newkey)";
     }
 
     public function createUpdateQuery($where_clause)
     {
         $this->makeDatabaseConnection();
-        foreach ($this->update as $key => $value) {
+        $id = $this->id;
+        unset($this->id);
+        foreach ($this->getClassCreateVariables() as $key => $value) {
             $values .= "`".$key."` = '".$value."',";
         }
         
@@ -512,6 +489,8 @@ class Model
         $val = rtrim($val, ",");
 
         $table = $this->getTableName();
+
+        $where_clause = "id = '$id' ";
 
         return $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
     }
@@ -563,7 +542,7 @@ class Model
         $insert_query = $this->createInsertQuery();
         $prepared_query = $this->db_engine->prepare($insert_query);
 
-        foreach ($this->arr as $key => $value) {
+        foreach ($this->getClassCreateVariables() as $key => $value) {
             $prepared_query->bindParam($key, $value);
         }
 
@@ -572,6 +551,7 @@ class Model
 
     public function insertFromPost()
     {
+        $this->makeDatabaseConnection();
         $this->triggerEvent('creating');
         $insert_query = $this->createInsertQueryFromPost($_POST);
         $insert_query->execute();
@@ -756,13 +736,19 @@ class Model
     public function find($id)
     {
         $result = $this->get("id = '$id'");
+        $new_instance = new $this;
+
+        $new_instance->update = true;
         if (count($result)) {
             foreach ($result as $key => $value) {
-                if (is_string($key)) {
-                    $this->$key = $value;
+                
+                if (!is_numeric($key)) {
+                    $new_instance->$key = $value;
                 }
             }
-            return $this;
+            
+            unset ($new_instance->last_query);
+            return $new_instance;
         }
 
         return null;
@@ -825,6 +811,7 @@ class Model
         
         $query = $this->db_engine->query($sql);
         $this->triggerEvent('updated');
+        $this->update = false;
         return $query;
     }
 
@@ -896,18 +883,22 @@ class Model
     {
         try {
             $this->triggerEvent('saving');
-            if (!empty($this->arr)) {
-                $this->triggerEvent('creating');
-                $this->insert()->execute($this->arr);
-                $this->triggerEvent('created');
+            if (!$this->update) {
+                
+                if (!empty($this->getClassCreateVariables())) {
+                    $this->triggerEvent('creating');
+                    $this->insert()->execute($this->getClassCreateVariables());
+                    $this->triggerEvent('created');
+                    return true;
+                }
             }
             
-            if (!empty($this->update)) {
-                $this->update()->execute($this->update);
-            }
-            $this->arr = array();
-            $this->update = array();
+            $this->triggerEvent('updating');
+            $this->update()->execute($this->getClassCreateVariables());
+            $this->triggerEvent('updated');
+
             $this->triggerEvent('saved');
+            
             return true;
         } catch (Exception $e) {
             return false;
