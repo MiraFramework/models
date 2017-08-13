@@ -21,6 +21,8 @@ class Model
             $this->database = $default_database;
         }
 
+        $this->database_connected = false;
+
         if (method_exists($this, 'create')) {
             $this->create = true;
             $this->createDatabaseIfNotExists();
@@ -75,7 +77,7 @@ class Model
                         $keys = explode(":", $value);
                         $query_string .= " DATETIME NOT NULL";
 
-                        if ($keys[1]) {
+                        if (isset($keys[1])) {
                             $query_string .= " DEFAULT $keys[1]";
                         }
                     } elseif (preg_match('/^date/', $value)) {
@@ -167,9 +169,9 @@ class Model
         $keys = explode(':', $value);
         $table = $this->getTableName();
         $create_columns = $this->getClassCreateVariables();
-        $drop_foreign_key .= "
+        $drop_foreign_key = "
             ALTER TABLE $table DROP 
-            FOREIGN KEY `$keys[1]"._."$keys[2]_fk`";
+            FOREIGN KEY `$keys[1]"."_"."$keys[2]_fk`";
 
         if ($tablecolumn) {
             $alter_column = "
@@ -239,6 +241,8 @@ class Model
         unset($allClassProperties['lastrow']);
         unset($allClassProperties['update']);
         unset($allClassProperties['last_query']);
+        unset($allClassProperties['structure']);
+        unset($defaultClassProperties['structure']);
 
         return array_diff($allClassProperties, $defaultClassProperties);
     }
@@ -530,7 +534,8 @@ class Model
                 return strtolower(end(explode("\\", static::class)));
             }
         } else {
-            return strtolower(end(explode("\\", static::class)));
+            $explode_namespace = explode("\\", static::class);
+            return strtolower(end($explode_namespace));
         }
     }
     
@@ -685,7 +690,7 @@ class Model
 
     public function triggerEvent($event)
     {
-        if ($this->Events) {
+        if (isset($this->Events)) {
             foreach($this->Events as $key => $value){
                 if ($key == $event) {
                     $this->callEvent($this->Events[$event], $key);
@@ -827,6 +832,7 @@ class Model
     {
         $this->triggerEvent('updating');
         $this->makeDatabaseConnection();
+        $values = "";
         foreach ($post as $key => $value) {
             $values .= "`".$key."` = '".$value."',";
         }
@@ -835,7 +841,6 @@ class Model
         $val = rtrim($val, ",");
 
         $table = $this->getTableName();
-        
         $query = $this->db_engine->query("UPDATE `$table` SET $val WHERE $where_clause LIMIT 1");
         return $query;
     }
