@@ -499,6 +499,33 @@ class Model
         return $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
     }
 
+    public function createUpdateQueryFromPost($post)
+    {
+        $this->makeDatabaseConnection();
+        $val = "";
+        foreach ($post as $key => $value) {
+            $val .= "`".$key."` = :".$key.",";
+        }
+        
+        $val = rtrim($val, ",");
+
+        $table = $this->getTableName();
+
+        if (isset($post['id'])) {
+            $where_clause = "id = :id";
+        } 
+
+        $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
+
+        $prepared_query = $this->db_engine->prepare($sql);
+
+        foreach ($post as $key => $value) {
+            $prepared_query->bindValue($key, $value);
+        }
+
+        return $prepared_query;
+    }
+
     public function createInsertQueryFromPost($post)
     {
         $this->makeDatabaseConnection();
@@ -746,9 +773,14 @@ class Model
         return $this->getCall();
     }
 
-    public function find($id)
+    public function find($value)
     {
-        $result = $this->get("id = '$id'");
+        if (is_int($id)) {
+            $result = $this->get("id = '$value'");
+        } else {
+            $result = $this->get($value);
+        }
+        
         $new_instance = new $this;
 
         $new_instance->update = true;
@@ -828,20 +860,12 @@ class Model
         return $query;
     }
 
-    public function updateFromPost($post, $where_clause = 1)
+    public function updateFromPost()
     {
         $this->triggerEvent('updating');
         $this->makeDatabaseConnection();
-        $values = "";
-        foreach ($post as $key => $value) {
-            $values .= "`".$key."` = '".$value."',";
-        }
-        
-        $val = str_replace(":", "", $values);
-        $val = rtrim($val, ",");
-
-        $table = $this->getTableName();
-        $query = $this->db_engine->query("UPDATE `$table` SET $val WHERE $where_clause LIMIT 1");
+        $query =$this->createUpdateQueryFromPost($_POST);
+        $query->execute();
         return $query;
     }
     
