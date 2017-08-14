@@ -565,7 +565,9 @@ class Model
 
     public function getTableName()
     {
+        $this->makeDatabaseConnection();
         if (strpos(static::class, "_") !== false) {
+            $table_name = strtolower(end(explode("\\", static::class)));
             if ($this->db_engine->query("SHOW TABLES LIKE '$table_name' ")->num_rows) {
                 return str_replace("_", "-", strtolower(end(explode("\\", static::class))));
             } else {
