@@ -480,23 +480,31 @@ class Model
         return $view_query = "INSERT INTO `$table` ($cols) VALUES($newkey)";
     }
 
-    public function createUpdateQuery($where_clause)
+    public function createUpdateQuery()
     {
         $this->makeDatabaseConnection();
         $id = $this->id;
         unset($this->id);
+        $values = "";
         foreach ($this->getClassCreateVariables() as $key => $value) {
-            $values .= "`".$key."` = '".$value."',";
+            $values .= " `".$key."` = :".$key.",";
         }
         
-        $val = str_replace(":", "", $values);
+        $val =  $values;
         $val = rtrim($val, ",");
 
         $table = $this->getTableName();
 
         $where_clause = "id = '$id' ";
+        $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
+        $prepared_query = $this->db_engine->prepare($sql);
 
-        return $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
+        var_dump($this->getClassCreateVariables());
+        
+        foreach ($this->getClassCreateVariables() as $key => $value) {
+            $prepared_query->bindValue($key, $value);
+        }
+        return $prepared_query;
     }
 
     public function createUpdateQueryFromPost($post)
@@ -852,9 +860,8 @@ class Model
     {
         $this->triggerEvent('updating');
         $this->makeDatabaseConnection();
-        $sql = $this->createUpdateQuery($where_clause);
+        $query = $this->createUpdateQuery();
         
-        $query = $this->db_engine->query($sql);
         $this->triggerEvent('updated');
         $this->update = false;
         return $query;
@@ -864,7 +871,7 @@ class Model
     {
         $this->triggerEvent('updating');
         $this->makeDatabaseConnection();
-        $query =$this->createUpdateQueryFromPost($_POST);
+        $query = $this->createUpdateQueryFromPost($_POST);
         $query->execute();
         return $query;
     }
@@ -931,7 +938,7 @@ class Model
             }
             
             $this->triggerEvent('updating');
-            $this->update()->execute($this->getClassCreateVariables());
+            $this->update()->execute();
             $this->triggerEvent('updated');
 
             $this->triggerEvent('saved');
