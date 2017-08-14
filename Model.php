@@ -23,6 +23,8 @@ class Model
 
         $this->database_connected = false;
 
+        $this->information = new \stdClass();
+
         if (method_exists($this, 'create')) {
             $this->create = true;
             $this->createDatabaseIfNotExists();
@@ -243,6 +245,7 @@ class Model
         unset($allClassProperties['last_query']);
         unset($allClassProperties['structure']);
         unset($defaultClassProperties['structure']);
+        unset($allClassProperties['information']);
 
         return array_diff($allClassProperties, $defaultClassProperties);
     }
@@ -603,6 +606,7 @@ class Model
         $this->triggerEvent('creating');
         $insert_query = $this->createInsertQueryFromPost($_POST);
         $insert_query->execute();
+        $this->information->lastInsertId = $this->db_engine->lastInsertId();
         $this->triggerEvent('created');
         return $this;
     }
