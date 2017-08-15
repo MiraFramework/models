@@ -501,8 +501,6 @@ class Model
         $where_clause = "id = '$id' ";
         $sql = "UPDATE `$table` SET $val WHERE $where_clause LIMIT 1";
         $prepared_query = $this->db_engine->prepare($sql);
-
-        var_dump($this->getClassCreateVariables());
         
         foreach ($this->getClassCreateVariables() as $key => $value) {
             $prepared_query->bindValue($key, $value);
