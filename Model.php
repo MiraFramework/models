@@ -412,6 +412,10 @@ class Model
             
             $sql = "SELECT * FROM $table_schema.$class_name, $reference_schema.$reference_table WHERE $table_schema.$class_name.$method = $reference_schema.$reference_table.id";
 
+            if (isset($this->$method)) {
+                return $cl->find($this->$method);
+            }
+            echo $method;
             return $cl;
         } elseif (is_integer($value[0])) {
 
@@ -787,7 +791,7 @@ class Model
 
     public function find($value)
     {
-        if (is_int($id)) {
+        if (is_numeric($value)) {
             $result = $this->get("id = '$value'");
         } else {
             $result = $this->get($value);
@@ -807,6 +811,7 @@ class Model
             unset ($new_instance->last_query);
             return $new_instance;
         }
+
 
         return null;
     }
