@@ -624,7 +624,7 @@ class Model
     public function getCall()
     {
         $this->triggerEvent('fetched');
-        if ($this->json == true) {
+        if (isset($this->json) && $this->json == true) {
             $this->json = false;
             return json_encode($this->last_call);
         } else {
@@ -703,7 +703,7 @@ class Model
 
     public function storeCache()
     {
-        if ($this->cache) {
+        if (isset($this->cache) && $this->cache == true) {
             $time = strtotime($this->cache_time);
             if (!file_exists("../cache/")) {
                 mkdir("../cache/");
