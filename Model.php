@@ -604,11 +604,17 @@ class Model
         return $this;
     }
 
-    public function insertFromPost()
+    public function insertFromPost($array = false)
     {
         $this->makeDatabaseConnection();
         $this->triggerEvent('creating');
-        $insert_query = $this->createInsertQueryFromPost($_POST);
+
+        if (!$array) {
+            $insert_query = $this->createInsertQueryFromPost($_POST);
+        } else {
+            $insert_query = $this->createInsertQueryFromPost($array);
+        }
+        
         $insert_query->execute();
         $this->information->lastInsertId = $this->db_engine->lastInsertId();
         $this->triggerEvent('created');
