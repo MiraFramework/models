@@ -493,6 +493,7 @@ class Model
         $id = $this->id;
         unset($this->id);
         $values = "";
+        var_dump($this->getClassCreateVariables());
         foreach ($this->getClassCreateVariables() as $key => $value) {
             $values .= " `".$key."` = :".$key.",";
         }
@@ -507,7 +508,12 @@ class Model
         $prepared_query = $this->db_engine->prepare($sql);
         
         foreach ($this->getClassCreateVariables() as $key => $value) {
-            $prepared_query->bindValue($key, $value);
+            if ($value == 'NULL') {
+                $prepared_query->bindValue($key, NULL);
+            } else {
+                $prepared_query->bindValue($key, $value);
+            }
+            
         }
         return $prepared_query;
     }
