@@ -790,9 +790,7 @@ class Model
 
         $query = $this->db_engine->query($queryString);
 
-        if (count($query->fetchAll())) {
-            $this->last_call = $query->fetchAll()[0];
-        }
+        $this->last_call = $query->fetchAll()[0];
         
         $this->last_query = $queryString;
 
@@ -905,7 +903,6 @@ class Model
         $this->triggerEvent('deleting');
 
         $table = $this->getTableName();
-
         if (isset($this->id)) {
             $where_clause = "id = '$this->id'";
         } elseif (isset($where_clause) && is_numeric($where_clause)) {
@@ -916,16 +913,13 @@ class Model
 
         $this->last_query = "DELETE FROM `$table` WHERE $where_clause LIMIT 1";
 
-        $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause LIMIT 1");
-        // $query->execute();
-        
+        $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause LIMIT 1");        
 
         if ($query->execute()) {
             $this->triggerEvent('deleted');
         } else {
             return false;
         }
-        
     }
     
     public function deleteAll($where_clause = 1)
