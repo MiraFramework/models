@@ -634,7 +634,10 @@ class Model
             $this->json = false;
             return json_encode($this->last_call);
         } else {
-            return json_decode(json_encode($this->last_call), false);
+            if (isset($this->last_call)) {
+                return json_decode(json_encode($this->last_call), false);
+            }
+            return false;
         }
     }
 
@@ -787,7 +790,10 @@ class Model
 
         $query = $this->db_engine->query($queryString);
 
-        $this->last_call = $query->fetchAll()[0];
+        if (count($query->fetchAll())) {
+            $this->last_call = $query->fetchAll()[0];
+        }
+        
         $this->last_query = $queryString;
 
         $this->storeCache();
@@ -806,7 +812,7 @@ class Model
         $new_instance = new $this;
 
         $new_instance->update = true;
-        if (count($result)) {
+        if ($result && count($result)) {
             foreach ($result as $key => $value) {
                 
                 if (!is_numeric($key)) {
@@ -819,7 +825,7 @@ class Model
         }
 
 
-        return null;
+        return $this;
     }
     
     public function filter($where_clause = null)
@@ -893,14 +899,33 @@ class Model
     
     #### DELETE
     
-    public function delete($where_clause = 1)
+    public function delete($where_clause = false)
     {
         $this->makeDatabaseConnection();
-        $this->delete_clause = $where_clause;
+        $this->triggerEvent('deleting');
 
         $table = $this->getTableName();
+
+        if (isset($this->id)) {
+            $where_clause = "id = '$this->id'";
+        } elseif (isset($where_clause) && is_numeric($where_clause)) {
+            $where_clause = "id = '$where_clause'";
+        } else {
+            return false;
+        }
+
+        $this->last_query = "DELETE FROM `$table` WHERE $where_clause LIMIT 1";
+
+        $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause LIMIT 1");
+        // $query->execute();
         
-        return $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause LIMIT 1");
+
+        if ($query->execute()) {
+            $this->triggerEvent('deleted');
+        } else {
+            return false;
+        }
+        
     }
     
     public function deleteAll($where_clause = 1)
