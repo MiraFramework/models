@@ -10,6 +10,7 @@ class Model
     private $update = false;
     public $structure = array();
     private $db_engine = false;
+    private $order_by = '';
     
     public function __construct($default_database = null)
     {
@@ -246,6 +247,7 @@ class Model
         unset($allClassProperties['structure']);
         unset($defaultClassProperties['structure']);
         unset($allClassProperties['information']);
+        unset($allClassProperties['order_by']);
 
         return array_diff($allClassProperties, $defaultClassProperties);
     }
@@ -415,7 +417,6 @@ class Model
             if (isset($this->$method)) {
                 return $cl->find($this->$method);
             }
-            echo $method;
             return $cl;
         } elseif (is_integer($value[0])) {
 
@@ -493,7 +494,6 @@ class Model
         $id = $this->id;
         unset($this->id);
         $values = "";
-        var_dump($this->getClassCreateVariables());
         foreach ($this->getClassCreateVariables() as $key => $value) {
             $values .= " `".$key."` = :".$key.",";
         }
@@ -757,6 +757,27 @@ class Model
             }
         }
     }
+
+    public function order($order) 
+    {
+        $explode = explode(',', $order);
+
+        $orderby = "ORDER BY ";
+
+        foreach ($explode as $order) {
+            if (strpos($order, "-") !== false) {
+                $order = str_replace('-', '', $order);
+
+                $orderby .= $order . ' DESC,';
+            } else {
+                $orderby .= $order . ' ASC,';
+            }
+        }
+
+        $this->order_by = $orderby = rtrim($orderby, ',');
+
+        return $this;
+    }
     
     #### READ
     public function all()
@@ -764,7 +785,7 @@ class Model
         $this->triggerEvent('fetching');
         $table = $this->getTableName();
 
-        $queryString = "SELECT * FROM `$table` WHERE 1";
+        $queryString = "SELECT * FROM `$table` WHERE 1 $this->order_by";
 
         if ($this->fetchCache($queryString)) {
             return $this->fetchCache($queryString);
