@@ -515,6 +515,7 @@ class Model
             }
             
         }
+        $this->id = $id;
         return $prepared_query;
     }
 
@@ -934,6 +935,8 @@ class Model
             $where_clause = "id = '$this->id'";
         } elseif (isset($where_clause) && is_numeric($where_clause)) {
             $where_clause = "id = '$where_clause'";
+        } elseif(isset($where_clause) && is_string($where_clause)) {
+            //
         } else {
             return false;
         }
