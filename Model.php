@@ -642,7 +642,26 @@ class Model
             return json_encode($this->last_call);
         } else {
             if (isset($this->last_call)) {
-                return json_decode(json_encode($this->last_call), false);
+                $return = [];
+                
+                if (is_array($this->last_call[0]) && isset($this->last_call[0][1])) {  
+                    foreach($this->last_call as $array) {
+                        $new_instance = new $this;
+                        foreach($array as $key => $value) {
+                            if (is_string($key)) {
+                                $new_instance->$key = $value;
+                            }
+                        }
+                        $return[] = $new_instance;
+                    }
+                    return $return;
+                } else {
+                    $new_instance = new $this;
+                    foreach($this->last_call as $key => $value) {
+                        $new_instance->$key = $value;                        
+                    }
+                    return $new_instance;
+                }
             }
             return false;
         }
