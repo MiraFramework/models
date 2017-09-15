@@ -245,6 +245,7 @@ class Model
         unset($defaultClassProperties['structure']);
         unset($allClassProperties['information']);
         unset($allClassProperties['order_by']);
+        unset($allClassProperties['database_connected']);
 
         return array_diff($allClassProperties, $defaultClassProperties);
     }
@@ -1065,6 +1066,6 @@ class Model
     
     public function viewQuery()
     {
-        echo $this->include()->view_query;
+        echo $this->last_query;
     }
 }
