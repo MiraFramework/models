@@ -667,7 +667,13 @@ class Model
                     foreach($this->last_call as $key => $value) {
                         $new_instance->$key = $value;                        
                     }
-                    return $new_instance;
+
+                    if (isset($new_instance->id)){
+                        return $new_instance;
+                    }
+
+                    return [];
+                    
                 }
             }
             return false;
