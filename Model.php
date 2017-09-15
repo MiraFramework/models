@@ -474,6 +474,7 @@ class Model
     public function createInsertQuery()
     {
         $this->makeDatabaseConnection();
+        $newkey = '';
         foreach ($this->getClassCreateVariables() as $key => $value) {
             
             $newkey .= " :".$key;
@@ -853,11 +854,10 @@ class Model
         } else {
             $result = $this->get($value);
         }
-        
-        $new_instance = new $this;
 
-        $new_instance->update = true;
-        if ($result && count($result)) {
+        $new_instance = new $this;
+        
+        if ($result->id) {
             foreach ($result as $key => $value) {
                 
                 if (!is_numeric($key)) {
@@ -866,6 +866,10 @@ class Model
             }
             
             unset ($new_instance->last_query);
+
+            $new_instance->update = true;
+
+            $new_instance;
             return $new_instance;
         }
 
