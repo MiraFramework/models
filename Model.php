@@ -32,9 +32,6 @@ class Model
             $this->create();
             $this->createTable();
         }
-
-        
-        return $this->getTableName();
     }
 
     public function createTable()
@@ -635,6 +632,15 @@ class Model
         return $this;
     }
 
+    private function createInstance()
+    {
+        $new_instance = new $this;
+        $new_instance->db_engine = $this->db_engine;
+        $new_instance->database_connected = true;
+        
+        return $new_instance;
+    }
+
     public function getCall()
     {
         $this->triggerEvent('fetched');
@@ -647,7 +653,7 @@ class Model
                 
                 if (is_array($this->last_call[0]) && isset($this->last_call[0][1])) {  
                     foreach($this->last_call as $array) {
-                        $new_instance = new $this;
+                        $new_instance = $this->createInstance();
                         foreach($array as $key => $value) {
                             if (is_string($key)) {
                                 $new_instance->$key = $value;
@@ -657,7 +663,7 @@ class Model
                     }
                     return $return;
                 } else {
-                    $new_instance = new $this;
+                    $new_instance = $this->createInstance();
                     foreach($this->last_call as $key => $value) {
                         $new_instance->$key = $value;                        
                     }
