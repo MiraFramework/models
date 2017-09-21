@@ -423,9 +423,10 @@ class Model
             $cl = new $foreign_class();
             return $cl->find($value[0]);
         } else {
-
-            $cl = new $reference_table();
-            $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $value[0]";
+            $reflection = new \ReflectionClass(static::class);
+            $foreign_class = $reflection->getNamespaceName()."\\".$reference_table;
+            $cl = new $foreign_class();
+            $sql = "SELECT * FROM $class_name, $reference_table WHERE $class_name.$method = $reference_table.id AND $reference_table.$value[0]";
             return $cl->query($sql);
         }
     
@@ -913,18 +914,6 @@ class Model
         return $this->getCall();
     }
 
-    public function toJson($where_clause = 1)
-    {
-        $this->makeDatabaseConnection();
-        $table = $this->getTableName();
-
-        $query = $this->db_engine->query("SELECT * FROM $table WHERE $where_clause");
-
-        $this->last_call = $query->fetchAll();
-        
-        return $this->getCall();
-    }
-
     public function query($sql, $where = '')
     {
         $this->makeDatabaseConnection();
@@ -983,45 +972,11 @@ class Model
 
         if ($query->execute()) {
             $this->triggerEvent('deleted');
+            return true;
         } else {
             return false;
         }
-    }
-    
-    public function deleteAll($where_clause = 1)
-    {
-        $this->makeDatabaseConnection();
-        $this->delete_clause = $where_clause;
-
-        $table = $this->getTableName();
-
-        return $query = $this->db_engine->prepare("DELETE FROM `$table` WHERE $where_clause ");
-    }
-    
-    public function confirm()
-    {
-        try {
-            $this->triggerEvent('deleting');
-            $this->delete($this->delete_clause)->execute();
-            $this->triggerEvent('deleted');
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-    
-    public function confirmAll()
-    {
-        try {
-            $this->triggerEvent('deleting');
-            $this->deleteAll($this->delete_clause)->execute();
-            $this->triggerEvent('deleted');
-            return true;
-        } catch (Exception $e) {
-            return false;
-        }
-    }
-    
+    }    
     
     public function save()
     {
@@ -1047,16 +1002,6 @@ class Model
         } catch (Exception $e) {
             return false;
         }
-    }
-    
-    public function works()
-    {
-        echo "works";
-    }
-    
-    public function viewSave()
-    {
-        print_r($this->arr);
     }
     
     public function viewUpdate()
