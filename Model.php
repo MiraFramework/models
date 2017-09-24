@@ -803,6 +803,15 @@ class Model
         $this->cache = false;
     }
 
+    private function deleteCache()
+    {
+        $tablename = $this->getTableName();
+        $files = preg_grep("/^$tablename/", scandir("../cache/"));
+        foreach ($files as $file) {
+            unlink($file);
+        }
+    }
+
     private function callEvent($event, $trigger)
     {
         $pos = strrpos($event, "\\");
@@ -971,6 +980,8 @@ class Model
         
         $this->triggerEvent('updated');
         $this->update = false;
+
+        $this->deleteCache();
         return $query;
     }
 
@@ -1016,6 +1027,7 @@ class Model
     public function save()
     {
         try {
+            $this->deleteCache();
             $this->triggerEvent('saving');
             if (!$this->update) {
                 
