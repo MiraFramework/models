@@ -682,9 +682,16 @@ class Model
         }
     }
 
-    public function cache($time)
+    public function cache($time = false)
     {
+        if ($time) {
+            $this->cache_time = $time;
+            return $this;
+        }
+
         $this->cache_time = $time;
+        $this->cache = true;
+        $this->cache_time = "+10 years";
         return $this;
     }
 
@@ -745,8 +752,34 @@ class Model
                 if ($this->json) {
                     return json_encode(unserialize($return));
                 }
+
+                $cachedCall = unserialize($return);
+                $returnArray = [];
                 
-                return unserialize($return);
+                if (is_array($cachedCall) && isset($cachedCall[1])) {  
+                    foreach($cachedCall as $array) {
+                        $new_instance = $this->createInstance();
+                        foreach($array as $key => $value) {
+                            if (is_string($key)) {
+                                $new_instance->$key = $value;
+                            }
+                        }
+                        $returnArray[] = $new_instance;
+                    }
+                    return $returnArray;
+                } else {
+                    $new_instance = $this->createInstance();
+                    foreach($this->last_call as $key => $value) {
+                        $new_instance->$key = $value;                        
+                    }
+
+                    if (isset($new_instance->id)){
+                        return $new_instance;
+                    }
+
+                    return [];
+                    
+                }
             }
         }
     }
@@ -823,6 +856,7 @@ class Model
         $queryString = "SELECT * FROM `$table` WHERE 1 $this->order_by";
 
         if ($this->fetchCache($queryString)) {
+            echo "fetch cache";
             return $this->fetchCache($queryString);
         }
 
