@@ -733,15 +733,17 @@ class Model
 
     public function fetchCache($queryString)
     {
-        if (file_exists("../cache/".md5($queryString).".cache.php")) {
+        $tablename = $this->getTableName();
+        $filename = "../cache/$tablename.".md5($queryString).".cache.php";
+        if (file_exists($filename)) {
             //print_r(filectime("../cache/".md5($queryString).".cache.php"));
-            $return = file_get_contents("../cache/".md5($queryString).".cache.php");
+            $return = file_get_contents($filename);
             $stripTime = preg_match("/^@\d+/", $return, $matches);
             $expire_time = str_replace("@", "", $matches[0]);
             $return = preg_replace("/^@\d+/", "", $return);
-            $file_create_time = filectime("../cache/".md5($queryString).".cache.php");
+            $file_create_time = filectime($filename);
             if ($expire_time < time()) {
-                unlink("../cache/".md5($queryString).".cache.php");
+                unlink($filename);
                 return false;
             } else {
                 $json_decode = json_decode($return, true);
@@ -788,16 +790,16 @@ class Model
     public function storeCache()
     {
         if (isset($this->cache) && $this->cache == true) {
+            $tablename = $this->getTableName();
+            $filename = "../cache/$tablename.".md5($this->last_query).".cache.php";
             $time = strtotime($this->cache_time);
             if (!file_exists("../cache/")) {
                 mkdir("../cache/");
             }
             if ($this->json) {
-                file_put_contents("../cache/".md5($this->last_query).
-                ".cache.php", "@".$time.json_encode($this->last_call));
+                file_put_contents($filename, "@".$time.json_encode($this->last_call));
             } else {
-                file_put_contents("../cache/".md5($this->last_query).
-                ".cache.php", "@".$time.serialize($this->last_call));
+                file_put_contents($filename, "@".$time.serialize($this->last_call));
             }
         }
         $this->cache = false;
@@ -808,7 +810,7 @@ class Model
         $tablename = $this->getTableName();
         $files = preg_grep("/^$tablename/", scandir("../cache/"));
         foreach ($files as $file) {
-            unlink($file);
+            unlink("../cache/".$file);
         }
     }
 
