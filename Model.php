@@ -277,6 +277,7 @@ class Model
                 $config['database']['username'],
                 $config['database']['password']
             );
+            $this->database_connected = true;
         }
     }
 
