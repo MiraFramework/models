@@ -868,7 +868,6 @@ class Model
         $queryString = "SELECT * FROM `$table` WHERE 1 $this->order_by";
 
         if ($this->fetchCache($queryString)) {
-            echo "fetch cache";
             return $this->fetchCache($queryString);
         }
 
